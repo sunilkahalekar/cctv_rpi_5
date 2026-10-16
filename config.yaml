@@ -1,0 +1,197 @@
+# cctv_rpi_5 — settings of the CCTV system on the RASPBERRY PI 5 + AI HAT+ 2.  Run with:
+#     .venv/bin/python run.py                 (by hand, in the folder ~/cctv_rpi_5)
+#     sudo systemctl start cctv-rpi5          (service, deploy/rpi5/04_service.sh)
+# Compared with the PC app (D:\AI\claude\CCTV_Yolo): model.backend hailo + .hef files, NVR sub
+# streams decoded by ffmpeg (H.265 in hardware), smaller dashboard pictures, exhaust fan through the
+# ESP32 only, database on the USB drive. Cameras, zones, areas, tracking and physics are the same.
+
+nvr:
+  ip: 10.185.101.253
+  port: 554
+  user: admin              # or set the NVR_USER environment variable
+  password: ""             # leave empty and set the NVR_PASSWORD environment variable
+  stream_index: 2          # 1 = main stream, 2 = sub stream. The Pi decodes video on its CPU (H.264)
+                           # or its H.265 decoder: start with sub streams; a far-view camera can take
+                           # its own  stream_index: 1  in the camera list if persons are missed
+  url_template: "rtsp://{user}:{password}@{ip}:{port}/Media/Live/Normal?camera=C_{channel}&streamindex={stream}"
+
+# One entry per camera (10 RTSP feeds). "id" is the NVR channel number, "location" is
+# the place that camera watches -- replace the placeholders with the real locations.
+# The location is stored with every database row and shown on the dashboard.
+# Two cameras may share a location; the "location_minute" view then adds them up.
+# Remove or comment out a line to skip that camera. A camera can also take
+# "source: <rtsp url or video file>" to bypass the NVR template.
+cameras:
+  - {id: 1,  name: "Camera 1",  location: "Location 1"}
+  - {id: 2,  name: "Camera 2",  location: "Location 2"}
+  - {id: 3,  name: "Camera 3",  location: "Location 3"}
+  - {id: 4,  name: "Camera 4",  location: "Location 4"}
+  - {id: 5,  name: "Camera 5",  location: "Location 5"}
+  - {id: 6,  name: "Camera 6",  location: "Location 6"}
+  - {id: 7,  name: "Camera 7",  location: "Location 7"}
+  - {id: 8,  name: "Camera 8",  location: "Location 8"}
+  - {id: 9,  name: "Camera 9",  location: "Location 9"}
+  - {id: 10, name: "Camera 10", location: "Location 10"}
+
+# Zones of the lab. "inside: false" zones are not counted as people inside the lab.
+# Cameras 1 and 2 look at the lobby outside the glass door. Cameras 3 and 10 are rooms
+# of their own, so they get their own zones and totals. Rename the zones as you like.
+zones:
+  - {key: outside, name: "Outside the lab",    inside: false, cameras: [1, 2]}
+  - {key: main,    name: "Main lab hall",      inside: true,  cameras: [4, 5, 6, 7, 8, 9]}
+  - {key: room3,   name: "Room at camera 3",   inside: true,  cameras: [3]}
+  - {key: room10,  name: "Room at camera 10",  inside: true,  cameras: [10]}
+
+# Zone in which the ThingSpeak air sensor stands (it is near location 8). The forecast
+# uses the persons and motion of this zone.
+sensor_zone: main
+
+# Door counter: counts people walking in and out through the glass door seen by one
+# camera. Positions are fractions of the picture (0,0 = top left, 1,1 = bottom right).
+# "line" lies on the floor just in front of the door; "inside_point" is any point on
+# the lab side of that line. Both can be redrawn on the dashboard (saved in
+# door_line.json, which then takes priority over the values here).
+door:
+  enabled: true
+  camera: 2
+  line: [[0.33, 0.63], [0.61, 0.44]]
+  inside_point: [0.41, 0.29]
+  weights: yolo26n.pt      # PC only (backend ultralytics)
+  hef: models/yolo26n.hef  # Hailo: door model; when the file is missing or this line is removed, the
+                           # door shares models/yolo26s.hef with the detection loop
+  imgsz: 640
+  conf: 0.3
+  fps: 5                   # frames per second analysed while someone is moving
+  reset_time: "04:00"      # the people-inside count starts again from 0 at this time every day
+
+model:
+  backend: hailo           # hailo = AI HAT+ 2 (Hailo-10H) with HailoRT; ultralytics = .pt on CPU (fallback)
+  hef: models/yolo26s.hef  # compiled for hailo10h (docs/RPI5_SETUP.md, step "Model"); input size is
+                           # fixed in the file (640x640), imgsz below is then ignored
+  labels: coco             # coco = the 80 COCO classes; custom model: a text file, one class per line
+  timeout_ms: 10000
+  weights: yolo26s.pt      # used only with backend: ultralytics
+  imgsz: 640
+  conf: 0.25               # PERSON_CONF in iaq-edge-pipeline
+  device: cpu              # only for backend: ultralytics
+  batch: 0                 # 0 = automatic (Hailo: all detection-area pictures of one second in one go)
+  classes: [person]        # class name(s) or id(s) that mean "person". COCO models: person.
+                           # Custom model: its class name, e.g. [person] or [student]; a one-class
+                           # model is used as it is. Custom weights: put the .pt file next to this file
+                           # and set weights: my_lab_person.pt
+
+setup:                     # camera setup first, detection after (dashboard page "Setup")
+  require_setup: true      # true = a camera is analysed only after its detection area is saved
+  detect_in: area          # area = YOLO looks only around the detection areas; picture = whole picture
+  crop_per_area: true      # true = each area its own part, enlarged: persons far from the camera are found better
+  crop_margin: 0.04        # extra border around the areas (fraction of the picture)
+  head_room: 0.35          # extra room above the areas, for the body of a person standing at the back edge
+
+tracking:                  # an ID per person per camera (README: "Stable counts")
+  max_gap_seconds: 20      # a walking person not seen for longer is matched again only by appearance
+  reid_seconds: 120        # a person lost for up to this long keeps their ID when they reappear
+  hold_seconds: 90         # a person SITTING / standing still in the area, missed by YOLO, stays counted this long
+  edge_hold_seconds: 30    # ... if they were standing still at the edge of the area
+  exit_hold_seconds: 5     # ... if they were walking (most likely left)
+  min_hits: 2              # a new person counts after this many pictures (no flicker from one false box)
+  confirm_conf: 0.5        # ... or at once with at least this confidence
+  conf_low: 0.10           # weaker boxes (down to this) only continue a known person, e.g. far away
+  walk_speed: 0.3          # body heights per second: faster feet = walking
+
+analytics:                 # motion of the persons inside each camera's detection area (README: calibration)
+  activity_noise: 0.005    # body heights per second; optical-flow activity below this = still (jitter)
+  speed_noise: 0.05        # body heights per second; foot displacement below this = standing
+  index_ref: 0.3           # total motion (BH/s) shown as 63 on the 0-100 motion index
+  show_outside: true       # draw persons outside the detection area in grey (they never count)
+  debug_log: false         # true: every picture's tracks and values to logs/analytics_debug.log
+# Detection areas are drawn on the dashboard (page "Setup") and saved in roi.json.
+
+fan:                       # exhaust fan: ESP32 only (esp32_fan_agent/esp32_fan_agent.ino)
+  enabled: true
+  dry_run: true            # START HERE: commands are simulated. false after the ESP32 test (guide, step "Fan")
+  controller: esp32        # the ESP32 agent is the only fan board on this system
+  esp32:
+    url: "http://10.185.103.170:8095"   # router WAN IP; port 8095 forwarded to the ESP32 at 192.168.0.200
+    token_env: ESP32_AGENT_TOKEN        # set in /etc/cctv-rpi5.env by the setup script, or ...
+    token_file: esp32_agent_token.txt   # ... first line of this file = TOKEN in esp32_fan_agent/secrets.h
+    timeout_seconds: 3
+    retries: 1
+    pin: 26                # shown on the dashboard until the ESP32 reports its own pin
+    active_high: true
+  operators: [admin]       # dashboard user names allowed to switch the fan and edit detection areas
+  startup_mode: last       # last / manual / ai : mode after a restart
+  default_mode: manual     # first start
+  check_seconds: 15        # AI decision interval, also the heartbeat to the ESP32 (its watchdog: 120 s)
+  ai:
+    # Starting values taken from the dashboard's category bands. NOT verified for this lab:
+    # calibrate them (README) before relying on AI mode. 'stop' must be below 'start' (hysteresis).
+    # (The words on/off cannot be used as keys here: YAML reads them as true/false.)
+    pollutants:
+      pm2_5: {start: 35, stop: 25}
+      pm10:  {start: 154, stop: 100}
+      pm1:   {start: 35, stop: 25}
+      co2:   {start: 1500, stop: 1000}
+      voc:   {start: 200, stop: 150}
+    activation_seconds: 120      # a measured value must stay at/above 'start' this long
+    forecast_trigger: true       # also start on the 10-minute forecast ...
+    forecast_confirmations: 3    # ... when this many forecasts in a row are at/above 'start'
+    forecast_requires_model: true  # ... and only from a model that beats "no change"
+    recovery_seconds: 300        # all pollutants at/below 'stop' this long before stopping
+    min_on_seconds: 600          # minimum run time
+    min_off_seconds: 180         # minimum pause before a forecast may start it again
+    stale_seconds: 300           # sensor data older than this = stale
+    stale_action: "off"          # off / on / hold when sensor data is stale (lab decision: off)
+
+pipeline:
+  tick_seconds: 1.0        # sampling interval per camera (TARGET_TICK_SECONDS in iaq-edge-pipeline)
+  window_seconds: 60       # feature window (WINDOW_SECONDS); windows start on wall-clock minutes
+  flow_width: 480          # optical flow is computed on frames resized to this width and scaled
+                           # back to full-resolution pixels; 0 = full resolution (exactly as the
+                           # original code, but slow with many cameras)
+  flow_interval: 0.1       # seconds between the two frames of the optical flow (= 1 / decode_fps)
+  decoder: ffmpeg          # ffmpeg = one decoder process per camera (Pi); opencv = in-process (PC)
+  hwaccel: auto            # auto = Pi 5 hardware decoder for H.265 streams, software for H.264; none = never
+  decode_fps: 10           # pictures per second ffmpeg hands over per camera (door counter needs >= its fps)
+  decode_width: 960        # pictures wider than this are scaled down by ffmpeg (0 = keep)
+  keep_seconds_days: 7     # per-second rows older than this are deleted; 0 = keep forever
+
+database:
+  path: data/iaq_cctv.db   # data/ is a link to the USB SSD (/mnt/ssd/cctv) when 01_system.sh found one
+
+thingspeak:
+  enabled: true
+  channel_id: 3201156
+  read_api_key: ""         # not needed for a public channel
+  poll_seconds: 20
+  backfill_results: 2000   # history fetched on first start (ThingSpeak maximum is 8000)
+  field_names: {}          # optional display names, e.g. {field1: "PM2.5 (ug/m3)", field2: "CO2 (ppm)"}
+
+# Forecast of the sensor values 10 minutes ahead, trained on the minutes stored here.
+forecast:
+  enabled: true
+  lead_minutes: 10
+  min_samples: 180         # minutes of data needed before a model is trained
+  history_days: 14
+  fields: [pm1, pm2_5, pm10, co2, voc]
+
+physics:                   # mass balance of the room air (README: "Physics-informed forecast")
+  enabled: true
+  volume_m3: 1853.26           # SET THIS: volume of MS 101 = length x width x height in metres
+  default_ach: 1.0         # air changes per hour assumed until decay periods have been measured
+  physics_weight: 1.0      # weight of the mass-balance penalty in the physics-informed variant
+  machine_token_env: MACHINE_AGENT_TOKEN   # machine agents send this token (POST /api/machines)
+
+dashboard:
+  host: 0.0.0.0            # 0.0.0.0 = reachable from other PCs on the lab network; 127.0.0.1 = this PC only
+  port: 8001
+  show_video: true         # live camera pictures on the dashboard (they show people)
+  video_width: 640         # width of the camera pictures (smaller on the Pi: JPEG work for 10 cameras)
+  title: "Lab Occupancy and Air-Quality Intelligence"
+  subtitle: "CCTV vision and air sensing"
+  require_login: true      # sign-in page before the dashboard; users are made with
+                           #   python run.py --add-user NAME
+  session_hours: 12        # how long a sign-in lasts
+  contact: ""              # shown on the sign-in page as "Need access? ...", e.g. a name or phone
+  logos: []                # up to three image files shown on the sign-in page, e.g. [logo.png, logo2.png]
+  hide_fields: [rawvoc]
+  footer: ["Runs on Raspberry Pi 5 + AI HAT+ 2", "Data stays in the lab"]    # sensors left out of every dashboard page (still stored and exported)

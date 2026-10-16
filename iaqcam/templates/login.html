@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sign in · {{ title }}</title>
+<style>
+:root { color-scheme: light; --page: #f4f3f0; --surface: #fcfcfb; --raise: #f1f0ec; --text: #0b0b0b; --text2: #52514e; --muted: #807e78; --border: rgba(11,11,11,.14); --field: #fff; --accent: #1f6fd0; --accent-ink: #fff; --bad: #b3261e; --bad-bg: #fdecea; --focus: #1f6fd0; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { color-scheme: dark; --page: #0d0d0d; --surface: #161615; --raise: #222221; --text: #fff; --text2: #c3c2b7; --muted: #96948d; --border: rgba(255,255,255,.16); --field: #0f0f0f; --accent: #4a93ea; --accent-ink: #06121f; --bad: #ff8a80; --bad-bg: #3a1513; --focus: #7fb2f0; }
+}
+:root[data-theme="dark"] { color-scheme: dark; --page: #0d0d0d; --surface: #161615; --raise: #222221; --text: #fff; --text2: #c3c2b7; --muted: #96948d; --border: rgba(255,255,255,.16); --field: #0f0f0f; --accent: #4a93ea; --accent-ink: #06121f; --bad: #ff8a80; --bad-bg: #3a1513; --focus: #7fb2f0; }
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body { margin: 0; background: var(--page); color: var(--text); font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+.shell { min-height: 100%; display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(360px, 0.85fr); }
+.brand { position: relative; overflow: hidden; color: #eaf2f8; padding: 44px 56px; display: flex; flex-direction: column; justify-content: space-between; gap: 36px;
+  background: radial-gradient(1200px 700px at 12% 8%, #14507a 0%, transparent 60%), radial-gradient(900px 620px at 92% 96%, #0d6a5d 0%, transparent 58%), #081a2b; }
+.brand::before { content: ""; position: absolute; inset: 0; opacity: 0.5; pointer-events: none;
+  background-image: linear-gradient(rgba(255,255,255,.043) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.043) 1px, transparent 1px);
+  background-size: 44px 44px; -webkit-mask-image: linear-gradient(#000 0%, transparent 92%); mask-image: linear-gradient(#000 0%, transparent 92%); }
+.flow { position: absolute; left: 0; right: 0; bottom: 0; width: 100%; height: 46%; pointer-events: none; opacity: 0.5;
+  -webkit-mask-image: linear-gradient(transparent 0%, #000 55%); mask-image: linear-gradient(transparent 0%, #000 55%); }
+.flow path { fill: none; stroke-linecap: round; stroke-dasharray: 10 16; animation: drift 16s linear infinite; }
+.flow path:nth-child(2) { animation-duration: 22s; }
+.flow path:nth-child(3) { animation-duration: 28s; }
+.flow path:nth-child(4) { animation-duration: 19s; }
+.flow circle { animation: rise 9s ease-in-out infinite; }
+.flow circle:nth-of-type(2n) { animation-duration: 12s; animation-delay: -4s; }
+.flow circle:nth-of-type(3n) { animation-duration: 15s; animation-delay: -7s; }
+@keyframes drift { 100% { stroke-dashoffset: -260; } }
+@keyframes rise { 0%, 100% { transform: translateY(0); opacity: 0.15; } 50% { transform: translateY(-26px); opacity: 0.75; } }
+@media (prefers-reduced-motion: reduce) { .flow path, .flow circle { animation: none; } }
+.brand > :not(.flow) { position: relative; }
+.marks { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; min-height: 52px; }
+.logo { display: block; height: 52px; width: auto; max-width: 200px; flex: 0 0 auto; background: #fff; padding: 5px 9px; border-radius: 9px; box-sizing: content-box; }
+.eyebrow { font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; color: #8fc4ee; margin: 0 0 14px; }
+h1 { font-size: clamp(30px, 3.4vw, 46px); line-height: 1.08; letter-spacing: -0.02em; font-weight: 680; margin: 0 0 16px; max-width: 17ch; }
+h1 em { font-style: normal; color: #6fd3b6; white-space: nowrap; }
+.lead { font-size: 16.5px; color: #c4d6e4; max-width: 46ch; margin: 0; }
+.points { list-style: none; margin: 30px 0 0; padding: 0; display: grid; gap: 14px; max-width: 52ch; }
+.points li { display: grid; grid-template-columns: 40px 1fr; gap: 14px; align-items: start; }
+.points svg { width: 40px; height: 40px; padding: 9px; border-radius: 10px; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.14); stroke: #9fd8ff; fill: none; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.points b { display: block; font-weight: 620; color: #fff; }
+.points span { color: #b4c8d8; font-size: 14px; }
+.base { display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 12.5px; color: #93adc1; }
+.base i { font-style: normal; display: inline-flex; align-items: center; gap: 7px; }
+.base i::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: #6fd3b6; }
+.side { display: flex; flex-direction: column; justify-content: center; padding: 40px clamp(22px, 5vw, 64px); background: var(--surface); border-left: 1px solid var(--border); }
+.card { width: 100%; max-width: 380px; margin: 0 auto; }
+.card h2 { font-size: 25px; letter-spacing: -0.01em; margin: 0 0 4px; font-weight: 660; }
+.card .hint { color: var(--text2); margin: 0 0 26px; }
+label { display: block; font-size: 13px; font-weight: 600; margin: 0 0 6px; }
+.field { position: relative; margin: 0 0 18px; }
+input[type="text"], input[type="password"] { width: 100%; font: inherit; color: var(--text); background: var(--field); border: 1px solid var(--border); border-radius: 10px; padding: 11px 13px; outline: none; transition: border-color .12s, box-shadow .12s; }
+input:focus-visible { border-color: var(--focus); box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus) 28%, transparent); }
+.field .show { position: absolute; right: 6px; top: 31px; border: 0; background: none; color: var(--text2); font: inherit; font-size: 12.5px; padding: 7px 9px; border-radius: 7px; cursor: pointer; }
+.field .show:focus-visible, .go:focus-visible, a:focus-visible, .theme:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+#password { padding-right: 68px; }
+.go { width: 100%; border: 0; border-radius: 10px; padding: 12px 16px; font: inherit; font-weight: 650; color: var(--accent-ink); background: var(--accent); cursor: pointer; margin-top: 4px; }
+.go:hover { filter: brightness(1.06); }
+.go[disabled] { opacity: 0.6; cursor: default; }
+.alert { display: flex; gap: 10px; align-items: flex-start; background: var(--bad-bg); color: var(--bad); border: 1px solid color-mix(in srgb, var(--bad) 40%, transparent); border-radius: 10px; padding: 10px 12px; margin: 0 0 18px; font-size: 14px; }
+.alert[hidden] { display: none; }
+.alert::before { content: "!"; flex: 0 0 auto; width: 18px; height: 18px; border-radius: 50%; background: var(--bad); color: var(--bad-bg); font-weight: 800; font-size: 12px; display: grid; place-items: center; margin-top: 1px; }
+.alert code { font-size: 13px; }
+.caps { color: var(--text2); font-size: 12.5px; margin: -10px 0 14px; }
+.caps[hidden] { display: none; }
+.under { margin: 22px 0 0; padding-top: 18px; border-top: 1px solid var(--border); color: var(--muted); font-size: 12.5px; display: flex; flex-wrap: wrap; gap: 6px 14px; justify-content: space-between; align-items: center; }
+.theme { border: 1px solid var(--border); background: var(--raise); border-radius: 999px; padding: 3px 11px; font: inherit; font-size: 12.5px; color: var(--text); cursor: pointer; }
+@media (max-height: 800px) and (min-width: 901px) {
+  .brand { padding: 30px 48px; gap: 22px; }
+  .points { margin-top: 20px; gap: 11px; }
+  h1 { font-size: clamp(28px, 3vw, 38px); }
+  .lead { font-size: 15.5px; }
+}
+@media (max-width: 900px) {
+  .shell { grid-template-columns: 1fr; }
+  .brand { padding: 26px 22px 30px; gap: 22px; }
+  .points, .base { display: none; }
+  .lead { font-size: 15px; }
+  .side { border-left: 0; border-top: 1px solid var(--border); justify-content: flex-start; padding-top: 30px; }
+}
+</style>
+</head>
+<body>
+<div class="shell">
+  <section class="brand" aria-label="About this system">
+    <svg class="flow" viewBox="0 0 800 420" preserveAspectRatio="none" aria-hidden="true">
+      <path d="M-20 330 C 140 250, 260 390, 420 300 S 700 220, 830 290" stroke="rgba(111,211,182,.42)" stroke-width="2"/>
+      <path d="M-20 250 C 160 190, 300 300, 460 220 S 690 150, 830 210" stroke="rgba(143,196,238,.36)" stroke-width="2"/>
+      <path d="M-20 380 C 180 330, 320 420, 500 350 S 720 300, 830 350" stroke="rgba(143,196,238,.24)" stroke-width="2"/>
+      <path d="M-20 170 C 150 130, 310 210, 480 150 S 700 90, 830 140" stroke="rgba(111,211,182,.2)" stroke-width="2"/>
+      <g fill="#bfe6ff"><circle cx="90" cy="300" r="2.2"/><circle cx="210" cy="240" r="1.7"/><circle cx="330" cy="330" r="2.6"/><circle cx="455" cy="260" r="1.8"/>
+        <circle cx="560" cy="310" r="2.3"/><circle cx="660" cy="220" r="1.6"/><circle cx="740" cy="290" r="2.1"/><circle cx="150" cy="370" r="1.5"/><circle cx="610" cy="380" r="1.9"/></g>
+    </svg>
+    <div class="marks">{% for n in range(logo_count) %}<img class="logo" src="/brand/{{ n }}" alt="">{% endfor %}</div>
+    <div>
+      <p class="eyebrow">{{ subtitle }}</p>
+      <h1>{{ title_parts[0] }}{% if title_parts[1] %}<em>{{ title_parts[1] }}</em>{% endif %}{{ title_parts[2] }}</h1>
+      <p class="lead">Vision AI that counts the people in the lab, reads the air, and forecasts it ten minutes ahead.</p>
+      <ul class="points">
+        <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="2.8"/></svg>
+          <div><b>Vision context</b><span>Persons in every zone of the lab, people going in and out at the door, and their motion, from YOLO on the CCTV streams.</span></div></li>
+        <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9h10.5a2.5 2.5 0 1 0-2.4-3.2"/><path d="M3 13h15a2.6 2.6 0 1 1-2.5 3.4"/><path d="M3 17h7"/></svg>
+          <div><b>Air sensing</b><span>PM1, PM2.5, PM10, CO₂ and VOC, one reading a minute.</span></div></li>
+        <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 18l5-5 3.5 3L17 9.5"/><path d="M14.5 9.5H17V12"/><path d="M3 21h18"/></svg>
+          <div><b>Forecast</b><span>A model that knows how long the air takes to reach the sensor combines both and looks ten minutes ahead.</span></div></li>
+      </ul>
+    </div>
+    <div class="base">{% for item in footer %}<i>{{ item }}</i>{% endfor %}</div>
+  </section>
+
+  <main class="side">
+    <form class="card" method="post" action="/login" id="form" novalidate>
+      <h2>Sign in</h2>
+      <p class="hint">Authorised users of the laboratory only.</p>
+      <div class="alert" id="alert" role="alert" {% if not error %}hidden{% endif %}>{% if no_users %}<span>No account exists yet. On the PC that runs the app, create one with <code>python run.py --add-user NAME</code>.</span>{% else %}<span>{{ error }}</span>{% endif %}</div>
+      <input type="hidden" name="next" value="{{ next }}">
+      <div class="field">
+        <label for="username">User name</label>
+        <input id="username" name="username" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" required value="{{ username }}">
+      </div>
+      <div class="field">
+        <label for="password">Password</label>
+        <input id="password" name="password" type="password" autocomplete="current-password" required>
+        <button class="show" type="button" id="show" aria-pressed="false" aria-controls="password">Show</button>
+      </div>
+      <p class="caps" id="caps" hidden>Caps Lock is on.</p>
+      <button class="go" type="submit" id="go">Sign in</button>
+      <div class="under"><span>{% if contact %}Need access? {{ contact }}{% endif %}</span>
+        <button class="theme" type="button" id="theme">Dark / light</button></div>
+    </form>
+  </main>
+</div>
+<script>
+(function () {
+  var root = document.documentElement, pw = document.getElementById("password"), show = document.getElementById("show");
+  try { var saved = localStorage.getItem("theme"); if (saved) root.dataset.theme = saved; } catch (e) {}
+  document.getElementById("theme").addEventListener("click", function () {
+    var dark = root.dataset.theme ? root.dataset.theme === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches;
+    root.dataset.theme = dark ? "light" : "dark";
+    try { localStorage.setItem("theme", root.dataset.theme); } catch (e) {}
+  });
+  show.addEventListener("click", function () {
+    var visible = pw.type === "text";
+    pw.type = visible ? "password" : "text";
+    show.textContent = visible ? "Show" : "Hide";
+    show.setAttribute("aria-pressed", visible ? "false" : "true");
+  });
+  pw.addEventListener("keyup", function (e) {
+    if (e.getModifierState) document.getElementById("caps").hidden = !e.getModifierState("CapsLock");
+  });
+  document.getElementById("form").addEventListener("submit", function (e) {
+    var user = document.getElementById("username"), alertBox = document.getElementById("alert");
+    if (!user.value.trim() || !pw.value) {
+      e.preventDefault();
+      alertBox.hidden = false;
+      alertBox.replaceChildren(Object.assign(document.createElement("span"), { textContent: "Enter your user name and password." }));
+      (user.value.trim() ? pw : user).focus();
+      return;
+    }
+    document.getElementById("go").disabled = true;
+  });
+  (document.getElementById("username").value ? pw : document.getElementById("username")).focus();
+})();
+</script>
+</body>
+</html>

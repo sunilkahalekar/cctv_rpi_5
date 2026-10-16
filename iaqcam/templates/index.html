@@ -1,0 +1,334 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ title }}</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body data-show-video="{{ 'true' if show_video else 'false' }}" data-user="{{ user or '' }}">
+
+<header>
+  <div class="brand">{% if logo_count %}<img class="logo onwhite" src="/brand/0" alt="" style="height:52px">{% endif %}
+    <div><h1>{{ title }}</h1>
+      <div class="sub">{{ subtitle }}</div></div></div>
+  <div class="health">
+    <span class="pill" id="hCam"><i></i><span>Cameras</span></span>
+    <span class="pill" id="hSen"><i></i><span>Sensors</span></span>
+    <span class="pill" id="hFor"><i></i><span>Forecast</span></span>
+    <span class="pill" id="hFan"><i></i><span>Fan</span></span>
+    <span class="sub" id="clock"></span>
+    {% if user %}<form method="post" action="/logout" style="margin:0"><button class="ghost" type="submit" title="signed in as {{ user }}">Sign out</button></form>{% endif %}
+    <button class="ghost" id="theme" type="button" title="dark / light">◐</button>
+    {% for n in range(1, logo_count) %}<img class="logo onwhite" src="/brand/{{ n }}" alt="" style="height:52px">{% endfor %}
+  </div>
+</header>
+
+<nav class="tabs" id="tabs" aria-label="Pages">
+  <a href="#overview" data-page="overview">Overview</a>
+  <a href="#cameras" data-page="cameras">Cameras</a>
+  <a href="#areas" data-page="areas">Setup <span class="navbadge" id="navSetup" hidden></span></a>
+  <a href="#analytics" data-page="analytics">Motion</a>
+  <a href="#air" data-page="air">Air</a>
+  <a href="#physics" data-page="physics">Physics</a>
+  <a href="#warning" data-page="warning">Early warning <span class="navbadge" id="navWarn" hidden></span></a>
+  <a href="#fan" data-page="fan">Fan</a>
+  <a href="#events" data-page="events">Events</a>
+</nav>
+
+<div class="demo fault" id="fault" hidden>App not reachable. <span id="faultText"></span></div>
+<div class="rec" id="rec" hidden><b>Recorded</b> <span id="recText"></span>
+  <button class="ghost" id="recLive" type="button">Back to live</button></div>
+
+<div class="filters" id="rangeBar">
+  <div class="seg" id="range"><button type="button" data-m="30" aria-pressed="false">30 m</button><button type="button" data-m="60" aria-pressed="true">1 h</button><button type="button" data-m="180" aria-pressed="false">3 h</button><button type="button" data-m="360" aria-pressed="false">6 h</button><button type="button" data-m="1440" aria-pressed="false">24 h</button></div>
+  <form class="when" id="when">
+    <input type="datetime-local" id="whenFrom" aria-label="from" required>
+    <span class="label">→</span>
+    <input type="datetime-local" id="whenTo" aria-label="to" required>
+    <button class="go" type="submit">Show</button>
+    <span class="label" id="whenNote"></span></form></div>
+
+<!-- 1 OVERVIEW -->
+<main class="page" data-page="overview">
+  <div class="statusrow full" id="ovAlerts"></div>
+  <div class="cards full" id="ovCards"></div>
+  <div class="tiles" id="tiles"></div>
+  <div class="maincol">
+    <section class="card pchart" data-chart="ov">
+      <div class="head"><h2 class="title js-ctitle">Pollutant</h2>
+        <div class="headtools"><select class="js-scope" aria-label="people and motion from"></select></div></div>
+      <div class="legend js-legend"></div>
+      <div class="chart js-chart"><div class="empty">Waiting for data…</div></div>
+      <details class="hint"><summary><span class="badge js-badge">Forecast</span></summary><div class="body js-mtext"></div></details>
+    </section>
+  </div>
+  <div class="sidecol">
+    <a class="card fancard" href="#fan" id="ovFan" title="open fan control"><div id="ovFanPic"></div><div class="chips" id="ovFanChips"></div></a>
+    <a class="card phkey" href="#physics" id="ovPhys" title="open the physics of the room air">
+      <div class="head"><h2 class="title">Room air physics</h2><span class="eqmini">dC/dt = S − r(C − C<sub>b</sub>)</span></div>
+      <div class="phkeys" id="ovPhysKeys"><span class="label">Waiting for the first model…</span></div></a>
+    <section class="card"><h2 class="title">Zones</h2><div class="zones" id="ovZones"></div></section>
+    <section class="card"><div class="head"><h2 class="title">Events</h2><a class="ghost" href="#events">All</a></div><ul class="evlist" id="ovEvents"></ul></section>
+  </div>
+  <section class="card full"><div class="head"><h2 class="title">Cameras</h2><a class="ghost" href="#cameras">Open</a></div>
+    <div class="camgrid small" id="ovCams"></div></section>
+</main>
+
+<!-- 2 CAMERAS -->
+<main class="page" data-page="cameras" hidden>
+  <section class="card full">
+    <div class="head"><div><h2 class="title" id="cmTitle">Camera</h2><div class="chips tight" id="cmSub"></div></div>
+      <div class="headtools" id="cmToggles">
+        <label class="tog"><input type="checkbox" data-opt="boxes" checked> Boxes</label>
+        <label class="tog"><input type="checkbox" data-opt="ids" checked> IDs</label>
+        <label class="tog"><input type="checkbox" data-opt="roi" checked> Areas</label>
+        <label class="tog"><input type="checkbox" data-opt="outside" checked> Outside</label>
+        <a class="ghost" id="cmEditRoi" href="#areas">Edit setup</a></div></div>
+    <div class="cmlayout">
+      <div><div class="camview big" id="cmBig"></div><div class="chips" id="cmAreas"></div>
+        <div class="legendrow"><span class="sw still"></span>still <span class="sw moving"></span>moving <span class="sw held"></span>held (missed, still counted) <span class="sw outside"></span>outside / new <span class="sw area"></span>area</div></div>
+      <div>
+        <div class="minicards" id="cmStats"></div>
+        <div class="scroll short"><table id="cmPeople"></table></div>
+      </div>
+    </div>
+  </section>
+  <section class="card full"><div class="camgrid" id="cmGrid"></div></section>
+  <section class="card full"><h2 class="title" id="cmHistTitle">History</h2><div class="multichart" id="cmHist"></div></section>
+  <section class="card wide" id="doorCard" hidden>
+    <div class="head"><h2 class="title">Lab door</h2><span class="label" id="doorSub"></span></div>
+    <div class="doorframe" id="doorFrame">
+      <img id="doorImg" alt="door camera with the counting line">
+      <svg id="doorSvg" viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden="true"></svg>
+    </div>
+    <div class="stats three">
+      <div><span class="label">In</span><b id="doorIn">–</b></div>
+      <div><span class="label">Out</span><b id="doorOut">–</b></div>
+      <div><span class="label">Inside</span><b id="doorInside">–</b></div>
+    </div>
+    <details class="more"><summary class="label">Adjust</summary>
+      <div class="chips" id="doorView">
+        <button type="button" class="ghost" id="doorEdit">Redraw line</button>
+        <button type="button" class="ghost" id="doorSwap">Swap in / out</button></div>
+      <div class="chips" id="doorEditing" hidden>
+        <button type="button" class="ghost solid" id="doorSave">Save line</button>
+        <button type="button" class="ghost" id="doorCancel">Cancel</button></div>
+      <div class="label" id="doorHint">Arrow = into the lab</div>
+      <form class="chips" id="doorSetForm">
+        <label class="label">Inside now <input type="number" id="doorSetValue" min="0" max="5000" step="1" inputmode="numeric"></label>
+        <button type="submit" class="ghost">Set</button><span class="label" id="doorSetMsg"></span></form>
+    </details>
+  </section>
+  <details class="card sidecol-like"><summary>Per-minute table &amp; CSV</summary>
+    <div class="scroll"><table id="camMinutes"></table></div>
+    <div class="links" id="csvLinks">
+      <a data-export="camera_minute">cameras</a><a data-export="zone_minute">zones</a>
+      <a data-export="inside_minute">inside lab</a><a data-export="person_obs">persons</a>
+      <a data-export="door_minute">door</a><a data-export="door_events">door events</a>
+      <a data-export="sensor_readings">sensors</a><a data-export="forecasts">forecasts</a>
+      <a data-export="events">events</a></div></details>
+</main>
+
+<!-- 3 SETUP: detection area of every camera, before detection -->
+<main class="page" data-page="areas" hidden>
+  <section class="card full">
+    <div class="head"><h2 class="title">Camera setup</h2>
+      <div class="setprog" title="cameras set up"><div class="bar"><i id="suBar"></i></div><b id="suCount">–</b></div></div>
+    <ol class="steps"><li>Pick a camera</li><li>Draw where people are detected</li><li>Save · detection starts</li></ol>
+    <div class="sugrid" id="suGrid"></div>
+    <div class="label" id="suModel"></div>
+  </section>
+  <section class="card full">
+    <div class="head"><h2 class="title" id="arTitle">Camera</h2>
+      <select id="arCam" aria-label="camera"></select></div>
+    <div class="lightnote" id="arRO" hidden></div>
+    <div class="arlayout">
+      <div><div class="camview big" id="arView"></div>
+        <div class="hintline" id="arHint">People count when their feet are inside an area.</div></div>
+      <div>
+        <div class="seg" id="arMode" role="group" aria-label="detection">
+          <button type="button" data-mode="area" title="YOLO detects persons only in the drawn areas">▱ Area</button>
+          <button type="button" data-mode="full" title="the whole picture is the detection area">▭ Whole picture</button>
+          <button type="button" data-mode="skip" title="this camera is not analysed">⦸ Off</button></div>
+        <div id="arAreaTools">
+          <div class="chips"><button class="ghost solid" id="arNew" type="button">+ New area</button>
+            <button class="ghost solid" id="arFinish" type="button" hidden>Finish</button>
+            <button class="ghost" id="arCancel" type="button" hidden>Cancel</button></div>
+          <ul class="arlist" id="arList"></ul>
+        </div>
+        <div class="chips"><button class="ghost solid" id="arSave" type="button">Save</button>
+          <button class="ghost" id="arReload" type="button">Discard</button>
+          <button class="ghost" id="arReset" type="button" title="remove the setup: this camera stops being analysed">Reset</button>
+          <span class="label" id="arMsg"></span></div>
+        <div class="label" id="arWho"></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- 4 MOTION -->
+<main class="page" data-page="analytics" hidden>
+  <section class="card full">
+    <div class="head"><h2 class="title">Motion &amp; occupancy</h2>
+      <div class="headtools"><select id="anScope" aria-label="for"></select>
+        <button class="ghost" type="button" id="anInfo" aria-expanded="false">ⓘ</button></div></div>
+    <div class="body infobox" id="anHow" hidden>
+      Occupancy = feet inside an area · Activity = body movement ÷ body height per second (BH/s) ·
+      Moving = above noise · Total = sum of activity · σ² temporal = spread of the total over the minute ·
+      σ² between people = spread across persons · empty values are missing data, not zero.</div>
+    <div class="cards" id="anCards"></div>
+    <div class="multichart" id="anCharts"></div>
+  </section>
+  <section class="card wide"><div class="head"><h2 class="title">Where people stand</h2>
+      <select id="anPosCam" aria-label="camera"></select></div>
+    <div class="heat" id="anHeat"></div></section>
+  <section class="card sidecol-like"><h2 class="title">Persons now</h2>
+    <div class="scroll short"><table id="anPersons"></table></div></section>
+  <details class="card full" id="anDiag"><summary>Diagnostics</summary>
+    <div class="headtools"><select id="anDiagCam" aria-label="camera"></select>
+      <select id="anDiagMin" aria-label="minutes"><option value="2">2 min</option><option value="5" selected>5 min</option><option value="15">15 min</option></select>
+      <button class="ghost" id="anDiagLoad" type="button">Refresh</button></div>
+    <div class="label" id="anDiagNote"></div>
+    <div id="anDiagBody"></div></details>
+</main>
+
+<!-- 5 AIR -->
+<main class="page" data-page="air" hidden>
+  <div class="aircards full" id="airCards"></div>
+  <section class="card full pchart" data-chart="air">
+    <div class="head"><h2 class="title js-ctitle">Pollutant</h2>
+      <div class="headtools"><select class="js-field" aria-label="pollutant"></select>
+        <select class="js-scope" aria-label="people and motion from"></select></div></div>
+    <div class="legend js-legend"></div>
+    <div class="chart js-chart"><div class="empty">Waiting for data…</div></div>
+    <details class="hint"><summary><span class="badge js-badge">Forecast</span></summary><div class="body js-mtext"></div></details>
+  </section>
+  <section class="card wide"><h2 class="title">Timeline</h2><div id="airTimeline"></div></section>
+  <section class="card sidecol-like"><h2 class="title">Forecast error</h2><div class="errs one" id="skill"></div></section>
+</main>
+
+<!-- PHYSICS: mass balance of the room air (EAMTP plan 5.1-5.2) -->
+<main class="page" data-page="physics" hidden>
+  <section class="card full">
+    <div class="head"><h2 class="title">Room air physics</h2><span class="label" id="phVolume"></span></div>
+    <div class="eqn" aria-label="mass balance">
+      <span class="eqv">dC/dt</span><span class="eqo">=</span>
+      <span class="eqt src" title="what people, motion and machines add per minute">S<small>source</small></span><span class="eqo">−</span>
+      <span class="eqt lam" title="air change λ, plus deposition for particles">r<small>removal</small></span><span class="eqo">·(C −</span>
+      <span class="eqt cb" title="the level the air relaxes to: outdoor air / empty room"><span>C<sub>b</sub></span><small>background</small></span><span class="eqo">)</span>
+    </div>
+    <div class="phinputs" id="phInputs"></div>
+  </section>
+  <div class="phcards full" id="phCards"></div>
+  <section class="card full">
+    <div class="head"><h2 class="title">Over time</h2>
+      <select id="phField" aria-label="pollutant"></select></div>
+    <div class="multichart" id="phChart"></div>
+  </section>
+  <section class="card full">
+    <div class="head"><h2 class="title">Physics &amp; model events</h2><a class="ghost" href="#events">All events</a></div>
+    <ul class="pevlist" id="phEvents"></ul>
+  </section>
+  <section class="card full">
+    <div class="head"><h2 class="title">Research evaluation</h2><span class="label" id="phResWhen"></span></div>
+    <div id="phResearch"></div>
+  </section>
+</main>
+
+<!-- EARLY WARNING: pollution in transit (transit.py) -->
+<main class="page" data-page="warning" hidden>
+  <div class="ewcards full" id="ewCards"><div class="card empty">Waiting for the first model (needs camera and sensor history)</div></div>
+  <section class="card full">
+    <div class="head"><h2 class="title">Where it comes from, and when it arrives</h2>
+      <select id="ewField" aria-label="pollutant"></select></div>
+    <div id="ewFlow" class="ewflow"></div>
+  </section>
+  <section class="card full">
+    <div class="head"><h2 class="title">Next 30 minutes</h2><span class="label" id="ewSkill"></span></div>
+    <div class="legend" id="ewLegend"></div>
+    <div id="ewChart" class="ewchart"></div>
+  </section>
+  <section class="card wide"><h2 class="title">Emission learned from the cameras</h2><div id="ewInv"></div></section>
+  <section class="card sidecol-like"><div class="head"><h2 class="title">Warnings and lead time</h2><span class="label">30 days</span></div>
+    <div class="ewscore" id="ewScore"></div><ul class="pevlist" id="ewList"></ul></section>
+</main>
+
+<!-- 6 FAN -->
+<main class="page" data-page="fan" hidden>
+  <section class="card full fanpanel" id="fanPanel">
+    <div class="fangrid">
+      <div id="fanPic"></div>
+      <div class="fancontrols">
+        <div class="seg" id="fanCtl" role="group" aria-label="controller" hidden>
+          <button type="button" data-ctl="pi"><span class="dot"></span>Raspberry Pi</button><button type="button" data-ctl="esp32"><span class="dot"></span>ESP32</button></div>
+        <div class="seg big" id="fanMode" role="group" aria-label="mode">
+          <button type="button" data-mode="manual">Manual</button><button type="button" data-mode="ai">AI</button></div>
+        <div class="fanbtns" id="fanBtns">
+          <button type="button" class="bigbtn on" data-cmd="on">ON</button>
+          <button type="button" class="bigbtn off" data-cmd="off">OFF</button></div>
+        <div id="fanResult" class="result" aria-live="polite"></div>
+        <div class="lightnote" id="fanRO" hidden></div>
+      </div>
+      <div class="facts" id="fanFacts"></div>
+    </div>
+  </section>
+  <section class="card wide"><div class="head"><h2 class="title">Why</h2><span class="label" id="fanWhen"></span></div>
+    <p class="why" id="fanWhy"></p><div id="fanBars"></div></section>
+  <section class="card sidecol-like"><h2 class="title">Rules</h2><div id="fanPolicy"></div></section>
+  <details class="card full"><summary>Fan log</summary><div class="scroll"><table id="fanEvents"></table></div></details>
+</main>
+
+<!-- 7 EVENTS -->
+<main class="page" data-page="events" hidden>
+  <section class="card full" id="expCard">
+    <div class="head"><h2 class="title">Experiment log</h2><span class="label">for the paper: mark each test you do in the lab, so the analysis knows which minutes were tests</span></div>
+    <div class="expnow" id="expNow">No experiment running</div>
+    <form class="evfilters" id="expForm">
+      <select id="expType" aria-label="experiment type"></select>
+      <input id="expNote" size="34" maxlength="300" placeholder="Note: door closed, 6 people, sanding at bench 3…" aria-label="note">
+      <button class="ghost solid" type="button" id="expStart">Start</button>
+      <button class="ghost" type="button" id="expStop">Stop</button>
+      <button class="ghost" type="button" id="expAddNote">Add note</button>
+      <span class="result" id="expResult"></span>
+    </form>
+    <div class="scroll"><table id="expTable" class="evtable"></table></div>
+  </section>
+  <section class="card full">
+    <div class="evdays">
+      <div class="seg" id="evQuick"><button type="button" data-q="today" aria-pressed="true">Today</button><button type="button" data-q="yesterday">Yesterday</button><button type="button" data-q="7">7 days</button><button type="button" data-q="30">30 days</button><button type="button" data-q="all">All</button></div>
+      <input type="date" id="evDay" aria-label="day">
+      <span class="label" id="evRange"></span>
+    </div>
+    <div class="daychips" id="evDayChips"></div>
+    <div class="chips" id="evCounts"></div>
+    <form class="evfilters" id="evForm">
+      <select id="evKind" aria-label="type"><option value="">All types</option></select>
+      <select id="evLevel" aria-label="level"><option value="">All levels</option><option>info</option><option>warning</option><option>critical</option></select>
+      <select id="evCam" aria-label="camera"><option value="">All cameras</option></select>
+      <input id="evRoi" size="10" placeholder="Area" aria-label="area">
+      <select id="evPol" aria-label="pollutant"><option value="">All pollutants</option><option value="pm1">PM1</option><option value="pm2_5">PM2.5</option><option value="pm10">PM10</option><option value="co2">CO₂</option><option value="voc">VOC</option></select>
+      <select id="evFan" aria-label="fan state"><option value="">Fan any</option><option value="on">Fan ON</option><option value="off">Fan OFF</option></select>
+      <input id="evQ" size="14" placeholder="Search" aria-label="search">
+      <button class="ghost solid" type="submit">Apply</button>
+      <a class="ghost" id="evCsv">CSV</a>
+      <span class="label" id="evCount"></span>
+    </form>
+    <div class="scroll tall"><table id="evTable" class="evtable"></table></div>
+  </section>
+</main>
+
+<div class="foot"><span id="foot"></span></div>
+
+<div class="zoom" id="zoom" hidden role="dialog" aria-label="camera picture, large">
+  <div class="camview zoomview" id="zoomView"></div>
+  <div class="bar"><span id="zoomText"></span><button id="zoomClose" type="button">Close</button></div>
+</div>
+
+<script src="/static/core.js"></script>
+<script src="/static/visuals.js"></script>
+<script src="/static/charts.js"></script>
+<script src="/static/camview.js"></script>
+<script src="/static/pages.js"></script>
+</body>
+</html>

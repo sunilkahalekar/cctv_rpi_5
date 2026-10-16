@@ -1,0 +1,5 @@
+# Raspberry Pi 5 + AI HAT+ 2. numpy, opencv, flask, pyyaml and requests come from apt
+# (deploy/rpi5/01_system.sh) so they match hailo_platform (apt package hailo-h10-all); the
+# virtual environment sees them through --system-site-packages. No torch, no ultralytics.
+lap          # person tracking (assignment)
+pytest       # tests: .venv/bin/python -m pytest -q tests

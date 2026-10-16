@@ -1,0 +1,19 @@
+[Unit]
+Description=CCTV_Rpi_5: lab vision (10 cameras, AI HAT+ 2) + air sensors + forecast + ESP32 fan + dashboard (port 8001)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=@USER@
+WorkingDirectory=@APP@
+EnvironmentFile=/etc/cctv-rpi5.env
+ExecStart=@APP@/.venv/bin/python @APP@/run.py
+Restart=always
+RestartSec=10
+# one ffmpeg decoder per camera belongs to this service: stop them with it
+KillMode=control-group
+TimeoutStopSec=30
+Nice=-2
+
+[Install]
+WantedBy=multi-user.target

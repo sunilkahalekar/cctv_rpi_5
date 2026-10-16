@@ -1,0 +1,46 @@
+# --- secrets: never upload ---
+users.json
+dashboard_secret.key
+fan_agent_token.txt
+**/fan_agent_token.txt
+esp32_agent_token.txt
+esp32_fan_agent/secrets.h
+.env
+
+# --- lab data, logs, local settings made from the dashboard ---
+*.db
+*.db-shm
+*.db-wal
+logs/
+roi.json
+door_line.json
+test_cam*.jpg
+
+# --- large model weights (downloaded automatically on first run) ---
+*.pt
+
+# --- Python / editor clutter ---
+__pycache__/
+*.pyc
+.pytest_cache/
+.vscode/
+.idea/
+
+# --- old versions and update archives ---
+backup_v4/
+update_*.tar.gz
+Claude outputs/
+detect_persons.py
+
+# --- unused files from earlier versions ---
+iaqcam/static/app.js
+iaqcam/static/chart.umd.js
+
+# --- Raspberry Pi 5 system ---
+models/*.hef
+calib_frames/
+data
+data/
+reference.json
+requirements.lock.txt
+*.onnx
