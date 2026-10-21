@@ -377,3 +377,30 @@ def test_ultralytics_fallback_backend(monkeypatch, tmp_path):
     sec, _, _ = pipe._process([(cam, Sample(frame, gray, gray, now, 1.0, now - 0.1))])
     assert sec[0][4] == 1 and FakeYOLO.calls[-1] == (1, [0], 960)
     db.close()
+
+
+def test_hailo_busy_message_and_multi_process(monkeypatch, tmp_path):
+    seen = {}
+
+    class VDevice:
+        def __init__(self, params):
+            seen["mps"] = getattr(params, "multi_process_service", False)
+            raise RuntimeError("HAILO_OUT_OF_PHYSICAL_DEVICES")
+
+        @staticmethod
+        def create_params():
+            return types.SimpleNamespace()
+    mod = types.SimpleNamespace(VDevice=VDevice, HailoSchedulingAlgorithm=types.SimpleNamespace(ROUND_ROBIN=1),
+                                FormatType=types.SimpleNamespace(FLOAT32=1))
+    monkeypatch.setitem(sys.modules, "hailo_platform", mod)
+    monkeypatch.setattr(D, "_VDEVICE", None)
+    D._CACHE.clear()
+    hef = tmp_path / "m.hef"
+    hef.write_bytes(b"x")
+    with pytest.raises(RuntimeError, match="multi_process_service"):
+        D.make_detector({"backend": "hailo", "hef": str(hef)})
+    assert seen["mps"] is False
+    D._CACHE.clear()
+    with pytest.raises(RuntimeError, match="hailort.service"):
+        D.make_detector({"backend": "hailo", "hef": str(hef), "multi_process_service": True})
+    assert seen["mps"] is True

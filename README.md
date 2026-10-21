@@ -18,6 +18,7 @@ It started from the PC app in `D:\AI\claude\CCTV_Yolo` (lab-vision-iaq v8.4), wh
 
 ```bash
 cd ~/cctv_rpi_5
+bash deploy/rpi5/00_capacity_check.sh 120    # first: room next to what already runs on this Pi
 bash deploy/rpi5/01_system.sh && bash deploy/rpi5/02_hailo.sh && sudo reboot
 bash deploy/rpi5/03_app.sh
 .venv/bin/python tools/hailo_check.py --hef models/yolo26s.hef
@@ -33,12 +34,12 @@ bash deploy/rpi5/04_service.sh               # then as a service
 | `run.py`, `config.yaml` | the program and its settings |
 | `iaqcam/` | the app: `detector.py` (Hailo / Ultralytics), `videocap.py` (ffmpeg), `bytetrack.py` (door), pipeline, tracking, door, fan, forecast, physics, transit, web |
 | `models/` | `.hef` files (made with `tools/hailo_compile/`) |
-| `deploy/rpi5/` | setup scripts 01–05, systemd service, nightly backup |
+| `deploy/rpi5/` | capacity check 00, setup scripts 01–05, systemd service, nightly backup |
 | `tools/` | `hailo_check.py`, `stream_probe.py`, `collect_calib.py`, `hailo_compile/` |
 | `esp32_fan_agent/` | the ESP32 sketch (GPIO 26 → SSR) |
 | `machine_agent/`, `research/` | machine reports; offline research evaluation and figures |
 | `roi.json`, `door_line.json` | detection areas and door line (from the PC, 2026-10-16) |
 | `docs/` | `RPI5_SETUP.md` (this system), `APP_REFERENCE.md` (features, pages, calibration) |
-| `tests/` | `python -m pytest -q tests` (78 tests) |
+| `tests/` | `python -m pytest -q tests` (79 tests) |
 
 Secrets are never in the folder: NVR password and ESP32 token live in `/etc/cctv-rpi5.env` on the Pi; `users.json` and `esp32_agent_token.txt` are copied from the PC.

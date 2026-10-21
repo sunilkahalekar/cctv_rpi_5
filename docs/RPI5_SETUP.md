@@ -41,6 +41,58 @@ Everything after the detector — detection areas, tracking, motion, minute rows
 
 ---
 
+## 0. This Pi already runs a one-camera YOLO system (event_aware_aqi)
+
+The Pi 5 + AI HAT+ 2 already runs `event_aware_aqi` (one camera, YOLO on the HAT, BiLSTM forecast, dashboard on port 8090, data on `/mnt/usbdata`). Check first whether the 10-camera system fits beside it, then choose how the two share the Pi.
+
+**0.1 Log in and see what runs**
+```bash
+ssh pi@<pi-address>                       # e.g. the address of the 8090 dashboard
+systemctl status event_aware_aqi --no-pager | head -5
+free -h; df -h / /mnt/usbdata; vcgencmd get_throttled
+```
+
+**0.2 Back up the running system** (nothing below deletes it, but be safe)
+```bash
+bash ~/event_aware_aqi/backup.sh          # its database -> /mnt/usbdata/backups/event_aware_aqi
+```
+
+**0.3 Copy this folder and measure the free capacity — with event_aware_aqi running**
+```powershell
+scp -r D:\AI\claude\cctv_rpi_5 pi@<pi-address>:~/            # on the PC
+```
+```bash
+cd ~/cctv_rpi_5
+bash deploy/rpi5/00_capacity_check.sh 120    # 2 minutes; changes nothing
+```
+It reports RAM, CPU load, temperature, disk, which programs hold the AI HAT+ 2 and the ports, and ends with a verdict. Rough needs of this system: **~1.5 GB free RAM** (app + 10 ffmpeg decoders) and **~45 % CPU** (decoding, optical flow, dashboard). A 4 GB Pi with event_aware_aqi running is tight; an 8 GB Pi is comfortable.
+
+**0.4 Choose how the two share the Pi**
+
+| Choice | When | What to do |
+|---|---|---|
+| **A. Both run** | verdict OK for RAM, CPU and heat | share the HAT through HailoRT's multi-process service (0.5) |
+| **B. Pause event_aware_aqi while testing** | first installation and tests (recommended start) | `sudo systemctl stop event_aware_aqi`; start it again after the test (`sudo systemctl start event_aware_aqi`) |
+| **C. This system replaces it** | verdict not OK, or the one-camera study is finished | `sudo systemctl disable --now event_aware_aqi` (its files and data stay) |
+
+**0.5 Sharing the AI HAT+ 2 between two programs (choice A)**
+One program may hold the chip at a time unless both go through HailoRT's multi-process service. If two programs try without it, the second stops with *"cannot open the Hailo device ... in use by another program"*.
+```bash
+systemctl list-unit-files | grep -i hailort        # the service comes with hailo-h10-all
+sudo systemctl enable --now hailort.service
+systemctl is-active hailort                        # active
+```
+- This system: `config.yaml` → `model:` → `multi_process_service: true`.
+- event_aware_aqi: in `~/event_aware_aqi/engine_hef.py`, below the line `params.group_id = "SHARED"`, add `params.multi_process_service = True`, then `sudo systemctl restart event_aware_aqi` and check its dashboard still shows detections.
+
+Hailo documents the multi-process service for Hailo-8/8L; on the Hailo-10H with HailoRT 5.x it is **not yet confirmed**. If either program then fails to open the device, use choice B or C (or run event_aware_aqi on the CPU with its `config_stage1_cpu` preset).
+
+**0.6 What is already done on this Pi** — the OS (Trixie), `hailo-h10-all`, the USB drive at `/mnt/usbdata` and the compile environment in WSL2 (Route A, `tools/hailo_compile/README.md`) exist from event_aware_aqi. The setup scripts check and reuse them: run `01_system.sh` (adds ffmpeg, the Python libraries and `data/` → `/mnt/usbdata/cctv`), **skip `02_hailo.sh`** when `hailortcli fw-control identify` already shows HAILO10H, then `03_app.sh`. Never install `hailo-all` beside it.
+
+**0.7 No clashes** — ports: this system 8001, event_aware_aqi 8090. Data: `/mnt/usbdata/cctv` vs `/mnt/usbdata/event_aware_aqi` folders. Services: `cctv-rpi5` vs `event_aware_aqi`. The ESP32 fan is commanded by this system only.
+
+**0.8 After the first run, measure again** with both running: `bash deploy/rpi5/00_capacity_check.sh 120` and `bash deploy/rpi5/05_health.sh`. Want: CPU below ~80 %, RAM available above ~500 MB, temperature below 80 °C, `throttled=0x0`. Otherwise lower the load: `decode_fps: 8`, `decode_width: 800`, or fewer cameras in `config.yaml` (comment lines out).
+
 ## 1. Hardware
 
 - Raspberry Pi 5, **8 GB** recommended (4 GB works), official 27 W USB-C supply, **Active Cooler** (the HAT sits over it).
@@ -81,6 +133,7 @@ After areas are changed on the PC, copy `roi.json` / `door_line.json` again (or 
 ## 4. Setup scripts (on the Pi, in `~/cctv_rpi_5`)
 
 ```bash
+bash deploy/rpi5/00_capacity_check.sh   # free RAM / CPU / heat / HAT users (section 0)
 bash deploy/rpi5/01_system.sh      # packages, ffmpeg, watchdog, log cap, clock, data/ -> USB drive
 bash deploy/rpi5/02_hailo.sh       # hailo-h10-all (driver, firmware, HailoRT)
 sudo reboot
@@ -163,6 +216,6 @@ Run the PC app (`CCTV_Yolo`, fan disabled) and the Pi together for a week; each 
 
 ## 13. Tested and not yet tested
 
-Tested without the Pi (cloud test machine, 2026-10-16): all 78 automatic tests (65 from the PC app + 13 for the Pi) pass. They cover YOLO26 raw / NMS / table decoding, letterbox, a stand-in for HailoRT's Python API driving the real detection loop, ByteTrackLite, the ffmpeg reader and the ESP32-only controller against the mock agent. A full run of `run.py` also worked, with two test streams through ffmpeg and a simulated Hailo chip: per-minute rows, door IN counts, dashboard, and ffmpeg processes closed on exit.
+Tested without the Pi (cloud test machine, 2026-10-16): all 79 automatic tests (65 from the PC app + 14 for the Pi) pass. They cover YOLO26 raw / NMS / table decoding, letterbox, a stand-in for HailoRT's Python API driving the real detection loop, ByteTrackLite, the ffmpeg reader and the ESP32-only controller against the mock agent. A full run of `run.py` also worked, with two test streams through ffmpeg and a simulated Hailo chip: per-minute rows, door IN counts, dashboard, and ffmpeg processes closed on exit.
 
 **Not yet tested on real hardware:** HailoRT 5.x on the AI HAT+ 2 (the API calls follow the `engine_hef.py` of the earlier Pi 5 project, also not confirmed there), the output layout of the HEF you compile, H.265 hardware decoding of the NVR streams, the CPU load with 10 real cameras, and the ESP32 switched by the Pi.

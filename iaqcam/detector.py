@@ -78,7 +78,8 @@ def make_detector(model_cfg, weights_key="weights", hef_key="hef", imgsz=None):
         with _CACHE_LOCK:
             if key not in _CACHE:
                 _CACHE[key] = HailoDetector(hef, model_cfg.get("labels") or "coco",
-                                            int(model_cfg.get("timeout_ms") or 10000))
+                                            int(model_cfg.get("timeout_ms") or 10000),
+                                            bool(model_cfg.get("multi_process_service")))
             return _CACHE[key]
     weights = model_cfg[weights_key]
     size = int(imgsz or model_cfg.get("imgsz") or 640)
@@ -264,8 +265,11 @@ _VDEVICE = None
 _VDEVICE_LOCK = threading.Lock()
 
 
-def shared_vdevice():
-    """One virtual device for the whole program; the scheduler shares the chip between models."""
+def shared_vdevice(multi_process=False):
+    """One virtual device for the whole program; the scheduler shares the chip between models.
+    multi_process=True: go through HailoRT's multi-process service (hailort.service), needed when
+    ANOTHER program (e.g. event_aware_aqi on the same Pi) also uses the AI HAT+ 2 at the same time.
+    Both programs must then set it."""
     global _VDEVICE
     with _VDEVICE_LOCK:
         if _VDEVICE is None:
@@ -273,6 +277,8 @@ def shared_vdevice():
             params = VDevice.create_params()
             params.scheduling_algorithm = HailoSchedulingAlgorithm.ROUND_ROBIN
             params.group_id = "SHARED"
+            if multi_process:
+                params.multi_process_service = True
             _VDEVICE = VDevice(params)
         return _VDEVICE
 
@@ -281,12 +287,19 @@ class HailoDetector:
     backend = "hailo"
     accelerator = "Hailo-10H"
 
-    def __init__(self, hef, labels="coco", timeout_ms=10000):
+    def __init__(self, hef, labels="coco", timeout_ms=10000, multi_process=False):
         from hailo_platform import FormatType
         self.model_name = Path(hef).name
         self.timeout_ms = int(timeout_ms)
         self.names = load_labels(labels)
-        vdevice = shared_vdevice()
+        try:
+            vdevice = shared_vdevice(multi_process)
+        except Exception as exc:
+            hint = ("the AI HAT+ 2 is probably in use by another program (event_aware_aqi?): stop it, or set "
+                    "model: multi_process_service: true here AND in the other program, with hailort.service "
+                    "running (docs/RPI5_SETUP.md, section 0)") if not multi_process else \
+                   ("multi-process service not reachable: sudo systemctl enable --now hailort.service")
+            raise RuntimeError(f"cannot open the Hailo device ({type(exc).__name__}: {exc}); {hint}") from exc
         self.infer_model = vdevice.create_infer_model(str(hef))
         self.infer_model.set_batch_size(1)
         self.out_names = list(self.infer_model.output_names)

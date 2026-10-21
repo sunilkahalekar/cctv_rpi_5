@@ -237,6 +237,9 @@ def main():
         pipeline = Pipeline(cfg, cameras, db, state, roi)
     except ValueError as exc:                       # model classes do not match
         sys.exit(f"Model {model_label(cfg)}: {exc}\nCheck model.backend / model.hef / model.classes in the config.")
+    except RuntimeError as exc:                     # AI HAT+ 2 busy or not reachable
+        db.write_event("error", f"model not loaded: {exc}", "critical")
+        sys.exit(f"Model {model_label(cfg)}: {exc}")
     print(f"Model {pipeline.model_name} at {pipeline.imgsz}px on "
           f"{pipeline.accelerator}, {len(cameras)} camera(s); {pipeline.class_note}; "
           f"YOLO looks {'around the detection areas only' if pipeline.crop_to_area else 'at the whole picture'}")

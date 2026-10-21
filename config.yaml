@@ -70,6 +70,8 @@ model:
                            # fixed in the file (640x640), imgsz below is then ignored
   labels: coco             # coco = the 80 COCO classes; custom model: a text file, one class per line
   timeout_ms: 10000
+  multi_process_service: false   # true when another program uses the AI HAT+ 2 at the same time
+                                 # (event_aware_aqi on this Pi): both must set it; hailort.service running
   weights: yolo26s.pt      # used only with backend: ultralytics
   imgsz: 640
   conf: 0.25               # PERSON_CONF in iaq-edge-pipeline
