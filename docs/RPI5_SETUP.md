@@ -242,6 +242,6 @@ The backups are on the same drive as the database, so they do not protect agains
 
 ## 13. Tested and not yet tested
 
-Tested without the Pi (cloud test machine, 2026-10-16): all 80 automatic tests (65 from the PC app + 15 for the Pi) pass. They cover YOLO26 raw / NMS / table decoding, letterbox, a stand-in for HailoRT's Python API driving the real detection loop, ByteTrackLite, the ffmpeg reader and the ESP32-only controller against the mock agent. A full run of `run.py` also worked, with two test streams through ffmpeg and a simulated Hailo chip: per-minute rows, door IN counts, dashboard, and ffmpeg processes closed on exit.
+Tested without the Pi (cloud test machine, 2026-10-16): all 81 automatic tests (65 from the PC app + 16 for the Pi) pass. They cover YOLO26 raw / NMS / table decoding, letterbox, a stand-in for HailoRT's Python API driving the real detection loop, ByteTrackLite, the ffmpeg reader and the ESP32-only controller against the mock agent. A full run of `run.py` also worked, with two test streams through ffmpeg and a simulated Hailo chip: per-minute rows, door IN counts, dashboard, and ffmpeg processes closed on exit.
 
 **Not yet tested on real hardware:** HailoRT 5.x on the AI HAT+ 2 (the API calls follow the `engine_hef.py` of the earlier Pi 5 project, also not confirmed there), the output layout of the HEF you compile, H.265 hardware decoding of the NVR streams, the CPU load with 10 real cameras, and the ESP32 switched by the Pi.

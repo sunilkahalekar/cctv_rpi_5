@@ -433,3 +433,9 @@ def test_archive_seconds_writes_each_finished_day_once(tmp_path):
         assert len(list(csv.reader(fh))) == 31
     again = subprocess.run(cmd, capture_output=True, text=True, timeout=60).stdout
     assert "already archived" in again
+
+
+def test_parse_nms_by_score_layout():
+    flat = np.array([2, 0.1, 0.2, 0.5, 0.4, 0.8, 0, 0.0, 0.0, 0.2, 0.2, 0.6, 56] + [0] * 20, np.float32)
+    b, s, ids = D.parse_nms(flat, 80, 640, 640, 0.25)
+    assert len(b) == 2 and np.allclose(b[0], (128, 64, 256, 320)) and ids.tolist() == [0, 56]

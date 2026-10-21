@@ -41,6 +41,6 @@ bash deploy/rpi5/04_service.sh               # then as a service
 | `machine_agent/`, `research/` | machine reports; offline research evaluation and figures |
 | `roi.json`, `door_line.json` | detection areas and door line (from the PC, 2026-10-16) |
 | `docs/` | `RPI5_SETUP.md` (this system), `APP_REFERENCE.md` (features, pages, calibration) |
-| `tests/` | `python -m pytest -q tests` (80 tests) |
+| `tests/` | `python -m pytest -q tests` (81 tests) |
 
 Secrets are never in the folder: NVR password and ESP32 token live in `/etc/cctv-rpi5.env` on the Pi; `users.json` and `esp32_agent_token.txt` are copied from the PC.

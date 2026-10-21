@@ -210,16 +210,29 @@ def parse_nms(buf, n_classes, in_w, in_h, conf):
                 add(c, rows)
     else:
         flat = np.asarray(buf, dtype=np.float64).ravel()
-        i, c = 0, 0
-        while i < flat.size and c < n_classes:
-            n = flat[i]
-            if n < 0 or n != int(n) or i + 1 + 5 * int(n) > flat.size:
-                raise ValueError("NMS buffer is not in the NMS-by-class layout (run tools/hailo_check.py)")
-            n = int(n)
-            if n:
-                add(c, flat[i + 1:i + 1 + 5 * n])
-            i += 1 + 5 * n
-            c += 1
+        try:
+            i, c = 0, 0
+            while i < flat.size and c < n_classes:
+                n = flat[i]
+                if n < 0 or n != int(n) or i + 1 + 5 * int(n) > flat.size:
+                    raise ValueError("not NMS-by-class")
+                n = int(n)
+                if n:
+                    add(c, flat[i + 1:i + 1 + 5 * n])
+                i += 1 + 5 * n
+                c += 1
+        except ValueError:
+            # NMS-by-score layout: count, then count x (y1, x1, y2, x2, score, class)
+            boxes.clear(); scores.clear(); ids.clear()
+            n = flat[0] if flat.size else 0
+            if n < 0 or n != int(n) or 1 + 6 * int(n) > flat.size:
+                raise ValueError("NMS output is neither NMS-by-class nor NMS-by-score "
+                                 "(run tools/hailo_check.py and send its output)")
+            for y1, x1, y2, x2, s, c in flat[1:1 + 6 * int(n)].reshape(-1, 6):
+                if s >= conf:
+                    boxes.append((x1 * in_w, y1 * in_h, x2 * in_w, y2 * in_h))
+                    scores.append(s)
+                    ids.append(int(c))
     if not boxes:
         return np.zeros((0, 4)), np.zeros(0), np.zeros(0, dtype=int)
     return np.array(boxes), np.array(scores), np.array(ids, dtype=int)

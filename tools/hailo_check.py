@@ -85,6 +85,17 @@ def main():
                 print(f"{k:<11}: {v}")
     persons, note = person_class_ids(det.names, ["person"])
     print("classes    :", note)
+    if hasattr(det, "_run"):                     # raw outputs of one picture, for diagnosis
+        from iaqcam.detector import letterbox
+        lb, *_ = letterbox(np.full((720, 1280, 3), 114, np.uint8), det.in_w, det.in_h)
+        raw = det._run(np.ascontiguousarray(lb[:, :, ::-1]))
+        for name, buf in raw.items():
+            if isinstance(buf, (list, tuple)):
+                inner = [np.shape(b) for b in buf[:3]]
+                print(f"raw output : {name} list of {len(buf)}, first shapes {inner}")
+            else:
+                a = np.asarray(buf)
+                print(f"raw output : {name} array {a.shape} {a.dtype}, first values {np.round(a.ravel()[:8], 3).tolist()}")
 
     pics = sorted(p for p in Path(args.images).rglob("*") if p.suffix.lower() in PICS) if args.images else []
     test = cv2.imread(str(pics[0])) if pics else np.full((720, 1280, 3), 114, np.uint8)
