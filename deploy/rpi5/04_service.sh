@@ -1,15 +1,15 @@
 #!/bin/bash
 # CCTV_Rpi_5 - step 4 (on the Pi): start the system at boot, keep its secrets in one root-only
-# file, nightly database backup. Run only after `.venv/bin/python run.py`
+# file, nightly database backup. Run only after `cctv_rpi/bin/python run.py`
 # worked by hand.
 set -euo pipefail
 APP="${APP:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
 cd "$APP"
 ENVF=/etc/cctv-rpi5.env
-[ -x .venv/bin/python ] || { echo "STOP: run 03_app.sh first"; exit 1; }
+[ -x cctv_rpi/bin/python ] || { echo "STOP: run 03_app.sh first"; exit 1; }
 
 # refuse to enable a system whose model is missing
-.venv/bin/python - <<'PY'
+cctv_rpi/bin/python - <<'PY'
 import sys
 from iaqcam.config import load_config
 from pathlib import Path

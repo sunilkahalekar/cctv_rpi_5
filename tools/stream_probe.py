@@ -1,8 +1,8 @@
 """Can this Raspberry Pi decode all cameras? Run it BEFORE the app (guide, step "Streams").
 
-    .venv/bin/python tools/stream_probe.py
+    cctv_rpi/bin/python tools/stream_probe.py
         codec, size and frame rate of the main (1) and sub (2) stream of every camera
-    .venv/bin/python tools/stream_probe.py --load 60
+    cctv_rpi/bin/python tools/stream_probe.py --load 60
         decodes all cameras for 60 s exactly as the app would (pipeline.decoder, stream_index,
         decode_fps, decode_width, hwaccel) and reports pictures per second per camera, CPU
         load and temperature

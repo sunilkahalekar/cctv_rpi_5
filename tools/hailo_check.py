@@ -2,9 +2,9 @@
 the same persons as the .pt model on the PC.
 
 On the Raspberry Pi (AI HAT+ 2):
-    .venv/bin/python tools/hailo_check.py --hef models/yolo26s.hef
+    cctv_rpi/bin/python tools/hailo_check.py --hef models/yolo26s.hef
         input/output layout, decoding, speed (pictures per second) on a test picture
-    .venv/bin/python tools/hailo_check.py --hef models/yolo26s.hef --images calib_frames/ --compare reference.json
+    cctv_rpi/bin/python tools/hailo_check.py --hef models/yolo26s.hef --images calib_frames/ --compare reference.json
         persons found by the HEF vs the PC's .pt on the same pictures (recall / precision)
 
 On the PC (conda env cctv_yolo), once, to make reference.json from the same pictures:

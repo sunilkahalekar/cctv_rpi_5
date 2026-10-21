@@ -20,10 +20,11 @@ It started from the PC app in `D:\AI\claude\CCTV_Yolo` (lab-vision-iaq v8.4), wh
 cd ~/cctv_rpi_5
 bash deploy/rpi5/00_capacity_check.sh 120    # first: room next to what already runs on this Pi
 bash deploy/rpi5/01_system.sh && bash deploy/rpi5/02_hailo.sh && sudo reboot
-bash deploy/rpi5/03_app.sh
-.venv/bin/python tools/hailo_check.py --hef models/yolo26s.hef
-.venv/bin/python tools/stream_probe.py --load 60
-.venv/bin/python run.py                      # first run by hand (fan in dry run)
+bash deploy/rpi5/03_app.sh                   # creates the virtual environment cctv_rpi/
+source cctv_rpi/bin/activate                 # (cctv_rpi) prompt; or call cctv_rpi/bin/python directly
+cctv_rpi/bin/python tools/hailo_check.py --hef models/yolo26s.hef
+cctv_rpi/bin/python tools/stream_probe.py --load 60
+cctv_rpi/bin/python run.py                      # first run by hand (fan in dry run)
 bash deploy/rpi5/04_service.sh               # then as a service
 ```
 

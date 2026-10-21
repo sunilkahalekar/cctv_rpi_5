@@ -11,8 +11,8 @@ each finished day to compressed CSV files on the USB drive:
 Minute tables (camera_minute, zone_person_minute, door, sensors, forecasts, physics) stay in
 the database for ever and are small (a few MB per day).
 
-    .venv/bin/python tools/archive_seconds.py                 # all finished days not archived yet
-    .venv/bin/python tools/archive_seconds.py --day 2026-10-21
+    cctv_rpi/bin/python tools/archive_seconds.py                 # all finished days not archived yet
+    cctv_rpi/bin/python tools/archive_seconds.py --day 2026-10-21
 Runs every night from deploy/rpi5/backup.sh. Read with pandas:  pd.read_csv("person_obs.csv.gz")
 """
 import argparse

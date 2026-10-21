@@ -44,3 +44,7 @@ data/
 reference.json
 requirements.lock.txt
 *.onnx
+
+# --- Python environment on the Pi ---
+cctv_rpi/
+.venv/

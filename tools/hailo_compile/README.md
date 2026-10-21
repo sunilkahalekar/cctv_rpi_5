@@ -41,8 +41,8 @@ If Hailo's Model Zoo for your HailoRT version lists a precompiled `yolo26s` for 
 ## Check on the Pi before using it
 
 ```bash
-.venv/bin/python tools/hailo_check.py --hef models/yolo26s.hef                      # layout + speed
+cctv_rpi/bin/python tools/hailo_check.py --hef models/yolo26s.hef                      # layout + speed
 # PC:  python tools/hailo_check.py --weights yolo26s.pt --imgsz 640 --images calib_frames/full --save reference.json
-.venv/bin/python tools/hailo_check.py --hef models/yolo26s.hef --images calib_frames/full --compare reference.json
+cctv_rpi/bin/python tools/hailo_check.py --hef models/yolo26s.hef --images calib_frames/full --compare reference.json
 ```
 Accept at recall and precision ≥ 0.9. Custom-trained model (e.g. from `yolo_custom_training`): same steps with its `best.pt`, then `model: labels: models/labels.txt` in `config.yaml`.

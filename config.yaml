@@ -1,5 +1,5 @@
 # cctv_rpi_5 — settings of the CCTV system on the RASPBERRY PI 5 + AI HAT+ 2.  Run with:
-#     .venv/bin/python run.py                 (by hand, in the folder ~/cctv_rpi_5)
+#     cctv_rpi/bin/python run.py                 (by hand, in the folder ~/cctv_rpi_5)
 #     sudo systemctl start cctv-rpi5          (service, deploy/rpi5/04_service.sh)
 # Compared with the PC app (D:\AI\claude\CCTV_Yolo): model.backend hailo + .hef files, NVR sub
 # streams decoded by ffmpeg (H.265 in hardware), smaller dashboard pictures, exhaust fan through the

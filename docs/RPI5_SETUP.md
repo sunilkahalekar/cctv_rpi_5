@@ -138,8 +138,17 @@ bash deploy/rpi5/01_system.sh      # packages, ffmpeg, watchdog, log cap, clock,
 bash deploy/rpi5/02_hailo.sh       # hailo-h10-all (driver, firmware, HailoRT)
 sudo reboot
 hailortcli fw-control identify     # must say HAILO10H; write down hailortcli --version (5.3+ for YOLO26)
-bash deploy/rpi5/03_app.sh         # virtual environment (no torch), checks, tests
+bash deploy/rpi5/03_app.sh         # virtual environment cctv_rpi (no torch), checks, tests
 ```
+
+**The virtual environment `cctv_rpi`.** `03_app.sh` creates it inside the app folder (`cctv_rpi/`, with `--system-site-packages` so it sees the AI HAT+ 2's `hailo_platform`). Work in it like this:
+```bash
+cd ~/apps/cctv_rpi_5            # or wherever the folder is
+source cctv_rpi/bin/activate    # the prompt starts with (cctv_rpi)
+python run.py                   # every python command of this guide runs inside it
+deactivate                      # leave it
+```
+Without activating, `cctv_rpi/bin/python run.py` does the same; the service (`04_service.sh`) and the nightly backup use `cctv_rpi/bin/python` directly. To rebuild it: `rm -rf cctv_rpi && bash deploy/rpi5/03_app.sh`.
 
 ## 5. Model (.hef)
 
@@ -148,7 +157,7 @@ Follow `tools/hailo_compile/README.md`. Short version:
 - **For the lab (recommended):** collect 1,024+ pictures of our detection areas (`python tools/collect_calib.py`), export ONNX on Windows (`tools/hailo_compile/1_export_onnx.py`), compile in WSL2 Ubuntu with the Dataflow Compiler that matches the Pi's HailoRT (`2_prepare_calib.py` + `hailomz compile yolo26s ... --hw-arch hailo10h`). Same for `yolo26n` (door), optional.
 - **Check on the Pi:**
   ```bash
-  .venv/bin/python tools/hailo_check.py --hef models/yolo26s.hef
+  cctv_rpi/bin/python tools/hailo_check.py --hef models/yolo26s.hef
   ```
   It prints the output layout (raw / nms / table — the app decodes all three) and the speed. Then compare with the PC on the same pictures (recall and precision ≥ 0.9).
 
@@ -156,8 +165,8 @@ Follow `tools/hailo_compile/README.md`. Short version:
 
 ```bash
 export NVR_PASSWORD='...'
-.venv/bin/python tools/stream_probe.py            # codec and size of main/sub stream
-.venv/bin/python tools/stream_probe.py --load 60  # all cameras together
+cctv_rpi/bin/python tools/stream_probe.py            # codec and size of main/sub stream
+cctv_rpi/bin/python tools/stream_probe.py --load 60  # all cameras together
 ```
 Wanted: every camera ≈ 10 pictures/s, CPU < 60 %, temperature < 80 °C. If the sub stream is too small for a far camera (persons missed), give that camera its main stream in `config.yaml`: `- {id: 6, name: "Camera 6", location: "...", stream_index: 1}` — affordable when it is H.265 (hardware decoder), costly when H.264.
 
@@ -165,7 +174,7 @@ Wanted: every camera ≈ 10 pictures/s, CPU < 60 %, temperature < 80 °C. If the
 
 ```bash
 export NVR_PASSWORD='...'
-.venv/bin/python run.py
+cctv_rpi/bin/python run.py
 ```
 Expected lines: `Video: ffmpeg, 10 pictures/s per camera ...`, `Model yolo26s.hef at 640px on Hailo-10H, 10 camera(s) ...`, `Door counter on Camera 2 (yolo26n.hef ...)`, `Exhaust fan: DRY RUN`, then `[minute]` lines every minute. Open `http://<pi-address>:8001` from a lab PC and sign in (the same users as on the PC, from `users.json`).
 Check: Overview counts, every camera picture with boxes, Setup areas as on the PC, Door page, Air page (ThingSpeak), Events. Ctrl+C stops.
@@ -214,7 +223,7 @@ Where everything goes (all on the USB drive through `data/` → `/mnt/usbdata/cc
 
 Plan about **45 GB** of free space on the data drive for the first year; `00_capacity_check.sh` reports the free space. The figures come from the PC app's own database (busy weekday, 10 cameras, ~8 pictures per camera per minute), scaled to the Pi's 60 per minute; a lab with more people makes `person_obs` larger.
 
-The archive is written every night by `deploy/rpi5/backup.sh` (`tools/archive_seconds.py`), before the database deletes rows older than 7 days. By hand: `.venv/bin/python tools/archive_seconds.py`. Read on the PC: `pandas.read_csv("person_obs.csv.gz")`.
+The archive is written every night by `deploy/rpi5/backup.sh` (`tools/archive_seconds.py`), before the database deletes rows older than 7 days. By hand: `cctv_rpi/bin/python tools/archive_seconds.py`. Read on the PC: `pandas.read_csv("person_obs.csv.gz")`.
 
 The backups are on the same drive as the database, so they do not protect against a failed drive: copy `/mnt/usbdata/cctv/archive` and the newest backup to the PC now and then, e.g. weekly (PowerShell): `scp -r pi@<pi-address>:/mnt/usbdata/cctv/archive D:\AI\claude\cctv_rpi_5_data\`.
 

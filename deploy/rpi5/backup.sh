@@ -9,7 +9,7 @@ KEEP_DAYS="${KEEP_DAYS:-7}"
 DEST=/mnt/usbdata/backups/cctv
 mountpoint -q /mnt/usbdata || DEST="$APP/data/backups"
 mkdir -p "$DEST"
-"$APP/.venv/bin/python" "$APP/tools/archive_seconds.py" --db "$APP/data/iaq_cctv.db" --out /mnt/usbdata/cctv/archive || echo "archive failed"
+"$APP/cctv_rpi/bin/python" "$APP/tools/archive_seconds.py" --db "$APP/data/iaq_cctv.db" --out /mnt/usbdata/cctv/archive || echo "archive failed"
 sqlite3 "$APP/data/iaq_cctv.db" ".backup '$DEST/iaq_cctv-$(date +%F).db'"
 find "$DEST" -name 'iaq_cctv-*.db' -mtime +"$KEEP_DAYS" -delete
 echo "$(date '+%F %T') backup -> $DEST ($(du -sh "$DEST" | cut -f1) in backups); free on drive: $(df -h "$DEST" | awk 'NR==2 {print $4}')"

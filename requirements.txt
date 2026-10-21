@@ -2,4 +2,4 @@
 # (deploy/rpi5/01_system.sh) so they match hailo_platform (apt package hailo-h10-all); the
 # virtual environment sees them through --system-site-packages. No torch, no ultralytics.
 lap          # person tracking (assignment)
-pytest       # tests: .venv/bin/python -m pytest -q tests
+pytest       # tests: cctv_rpi/bin/python -m pytest -q tests
