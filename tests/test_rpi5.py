@@ -404,3 +404,32 @@ def test_hailo_busy_message_and_multi_process(monkeypatch, tmp_path):
     with pytest.raises(RuntimeError, match="hailort.service"):
         D.make_detector({"backend": "hailo", "hef": str(hef), "multi_process_service": True})
     assert seen["mps"] is True
+
+
+# ---------------------------------------------------------------- long-term detection archive
+def test_archive_seconds_writes_each_finished_day_once(tmp_path):
+    import csv
+    import gzip
+    from iaqcam.db import Database
+    db = Database(str(tmp_path / "iaq_cctv.db"))
+    rows, persons = [], []
+    for day in ("2026-10-19", "2026-10-20"):
+        for s in range(30):
+            ts = f"{day} 10:00:{s:02d}"
+            rows.append((ts, 8, 2, 0.1, 2, 1, 0.3))
+            persons += [(ts, 8, g, 0.9, 1, 1.5, 0.01, 0.02, 0, 10, 20, 50, 200, 0.01, 0.02) for g in (1, 2)]
+    db.write_seconds(rows)
+    db.write_person_obs(persons)
+    db.close()
+    out = tmp_path / "archive"
+    cmd = [sys.executable, str(APP / "tools" / "archive_seconds.py"), "--db", str(tmp_path / "iaq_cctv.db"),
+           "--out", str(out)]
+    r = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+    assert r.returncode == 0, r.stderr
+    with gzip.open(out / "2026-10-19" / "person_obs.csv.gz", "rt") as fh:
+        data = list(csv.reader(fh))
+    assert data[0][:3] == ["id", "Timestamp", "camera"] and len(data) == 61
+    with gzip.open(out / "2026-10-20" / "camera_second.csv.gz", "rt") as fh:
+        assert len(list(csv.reader(fh))) == 31
+    again = subprocess.run(cmd, capture_output=True, text=True, timeout=60).stdout
+    assert "already archived" in again

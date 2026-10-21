@@ -37,6 +37,9 @@ line "multi-process svc" "$(systemctl is-active hailort 2>/dev/null) (needed whe
 
 echo; echo "==== disk"
 df -h / /mnt/usbdata 2>/dev/null | sed 's/^/   /'
+mountpoint -q /mnt/usbdata && DATA_FREE_GB=$(df -BG --output=avail /mnt/usbdata | tail -1 | tr -dc 0-9) \
+                           || DATA_FREE_GB=$(df -BG --output=avail / | tail -1 | tr -dc 0-9)
+mountpoint -q /mnt/usbdata || echo "   !! no USB drive at /mnt/usbdata: the data would go to the SD card (not recommended)"
 
 echo; echo "==== load over ${SECS} s (the existing system as it runs now)"
 read -r _ u n s i w x y z _ < /proc/stat; T0=$((u+n+s+i+w+x+y+z)); I0=$((i+w))
@@ -62,5 +65,12 @@ if [ "$CPU" -gt $((100-NEED_CPU)) ]; then ok=0; echo "  CPU : ${CPU} % already u
 else echo "  CPU : OK (${CPU} % used now, ~${NEED_CPU} % more needed)"; fi
 if [ "$MAXT" -ge 75 ]; then ok=0; echo "  HEAT: ${MAXT} C already -> improve cooling first (Active Cooler, open case)"; else echo "  HEAT: OK (${MAXT} C)"; fi
 if [ "$users" -gt 0 ]; then echo "  HAT : in use by another program -> both programs need multi_process_service (guide section 0, step 0.4), or stop the other one"; fi
+# storage of the detections (measured on the PC app's database, 10 cameras, busy weekday, scaled from
+# ~8 to 60 pictures per camera per minute):
+#   database: per-second rows ~330 MB per busy day, kept 7 days -> ~2 GB; minute rows ~3.5 MB/day -> ~1.3 GB/year
+#   archive : per-second rows as csv.gz ~70 MB per busy day -> ~18 GB/year;  backups: 7 x ~3 GB = ~21 GB
+NEED_GB=45
+if [ "${DATA_FREE_GB:-0}" -lt "$NEED_GB" ]; then ok=0; echo "  DISK: ${DATA_FREE_GB} GB free on the data drive; plan ~${NEED_GB} GB for the first year (database 3 + backups 21 + archive 18)"
+else echo "  DISK: OK (${DATA_FREE_GB} GB free, ~${NEED_GB} GB needed in the first year)"; fi
 [ "$ok" = 1 ] && echo "  => both systems can run together (confirm with stream_probe --load 60)" \
-              || echo "  => not both at full rate: see the lines above"
+              || echo "  => fix the lines above first (or choose B/C in guide section 0.4)"

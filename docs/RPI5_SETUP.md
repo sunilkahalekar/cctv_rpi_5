@@ -65,7 +65,7 @@ scp -r D:\AI\claude\cctv_rpi_5 pi@<pi-address>:~/            # on the PC
 cd ~/cctv_rpi_5
 bash deploy/rpi5/00_capacity_check.sh 120    # 2 minutes; changes nothing
 ```
-It reports RAM, CPU load, temperature, disk, which programs hold the AI HAT+ 2 and the ports, and ends with a verdict. Rough needs of this system: **~1.5 GB free RAM** (app + 10 ffmpeg decoders) and **~45 % CPU** (decoding, optical flow, dashboard). A 4 GB Pi with event_aware_aqi running is tight; an 8 GB Pi is comfortable.
+It reports RAM, CPU load, temperature, disk, which programs hold the AI HAT+ 2 and the ports, and ends with a verdict. Rough needs of this system: **~1.5 GB free RAM** (app + 10 ffmpeg decoders), **~45 % CPU** (decoding, optical flow, dashboard) and **~45 GB free on the data drive** for the first year (see *Storage of the detections*). A 4 GB Pi with event_aware_aqi running is tight; an 8 GB Pi is comfortable.
 
 **0.4 Choose how the two share the Pi**
 
@@ -185,7 +185,7 @@ bash deploy/rpi5/04_service.sh     # asks NVR user/password and ESP32 token once
 journalctl -u cctv-rpi5 -f         # live log
 bash deploy/rpi5/05_health.sh      # HAT, temperature, throttling, newest rows per table
 ```
-The service starts at boot, restarts after a crash (10 s), and stops its ffmpeg decoders with it. A copy of the database is made every night at 02:40 to `/mnt/usbdata/backups/cctv` (30 days).
+The service starts at boot, restarts after a crash (10 s), and stops its ffmpeg decoders with it. Every night at 02:40 the day's detections are archived and a copy of the database is made to `/mnt/usbdata/backups/cctv` (7 copies) — see *Storage of the detections*.
 Updates: copy the changed files from `D:\AI\claude\cctv_rpi_5` (scp) — or keep the folder in its own GitHub repository and `git pull` — then `bash deploy/rpi5/03_app.sh && sudo systemctl restart cctv-rpi5`.
 
 ## 10. One week side by side, then switch
@@ -200,6 +200,23 @@ Run the PC app (`CCTV_Yolo`, fan disabled) and the Pi together for a week; each 
 | Detection | ~10–20 area pictures (1/s per camera, 1–2 areas) + up to 5 door pictures | Hailo-10H: tens of ms each, large headroom |
 | Optical flow | 10 × one 480 px pair | CPU (numpy/OpenCV) |
 | Tracking, minute rows, forecast, dashboard JPEGs (640 px) | small | CPU |
+
+## Storage of the detections
+
+Where everything goes (all on the USB drive through `data/` → `/mnt/usbdata/cctv`):
+
+| What | Where | Kept | Size (10 cameras, 1 picture/s each) |
+|---|---|---|---|
+| Per-second rows: `camera_second` (per camera per picture) and `person_obs` (per person per picture: box, confidence, ID, motion, speed) | database `data/iaq_cctv.db` | 7 days (`pipeline.keep_seconds_days`) | ~330 MB per busy day → ~2 GB in the database |
+| The same rows, every finished day | `/mnt/usbdata/cctv/archive/<day>/camera_second.csv.gz`, `person_obs.csv.gz` | for ever | ~70 MB per busy day → ~18 GB per year |
+| Minute rows: cameras, zones, door, sensors, forecasts, physics, warnings, events | database | for ever | ~3.5 MB per day → ~1.3 GB per year |
+| Nightly copy of the database | `/mnt/usbdata/backups/cctv/` | 7 copies (`KEEP_DAYS`) | 7 × ~3 GB |
+
+Plan about **45 GB** of free space on the data drive for the first year; `00_capacity_check.sh` reports the free space. The figures come from the PC app's own database (busy weekday, 10 cameras, ~8 pictures per camera per minute), scaled to the Pi's 60 per minute; a lab with more people makes `person_obs` larger.
+
+The archive is written every night by `deploy/rpi5/backup.sh` (`tools/archive_seconds.py`), before the database deletes rows older than 7 days. By hand: `.venv/bin/python tools/archive_seconds.py`. Read on the PC: `pandas.read_csv("person_obs.csv.gz")`.
+
+The backups are on the same drive as the database, so they do not protect against a failed drive: copy `/mnt/usbdata/cctv/archive` and the newest backup to the PC now and then, e.g. weekly (PowerShell): `scp -r pi@<pi-address>:/mnt/usbdata/cctv/archive D:\AI\claude\cctv_rpi_5_data\`.
 
 ## 12. Problems and fixes
 
@@ -216,6 +233,6 @@ Run the PC app (`CCTV_Yolo`, fan disabled) and the Pi together for a week; each 
 
 ## 13. Tested and not yet tested
 
-Tested without the Pi (cloud test machine, 2026-10-16): all 79 automatic tests (65 from the PC app + 14 for the Pi) pass. They cover YOLO26 raw / NMS / table decoding, letterbox, a stand-in for HailoRT's Python API driving the real detection loop, ByteTrackLite, the ffmpeg reader and the ESP32-only controller against the mock agent. A full run of `run.py` also worked, with two test streams through ffmpeg and a simulated Hailo chip: per-minute rows, door IN counts, dashboard, and ffmpeg processes closed on exit.
+Tested without the Pi (cloud test machine, 2026-10-16): all 80 automatic tests (65 from the PC app + 15 for the Pi) pass. They cover YOLO26 raw / NMS / table decoding, letterbox, a stand-in for HailoRT's Python API driving the real detection loop, ByteTrackLite, the ffmpeg reader and the ESP32-only controller against the mock agent. A full run of `run.py` also worked, with two test streams through ffmpeg and a simulated Hailo chip: per-minute rows, door IN counts, dashboard, and ffmpeg processes closed on exit.
 
 **Not yet tested on real hardware:** HailoRT 5.x on the AI HAT+ 2 (the API calls follow the `engine_hef.py` of the earlier Pi 5 project, also not confirmed there), the output layout of the HEF you compile, H.265 hardware decoding of the NVR streams, the CPU load with 10 real cameras, and the ESP32 switched by the Pi.
